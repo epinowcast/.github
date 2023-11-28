@@ -1,17 +1,22 @@
 # Style Guide
 
-This document outlines the style guide for the `epinowcast` package. This guide is a work in progress and will be updated as the package evolves. We welcome contributions to this guide and encourage you to raise issues or submit PRs if you have any suggestions.
+This document outlines the style guide for `epinowcast` family of packages. This guide is a work in progress and will be updated as the community packages evolve. We welcome contributions to this guide and encourage you to raise issues or submit PRs if you have any suggestions.
 
-In addition to this guide we also follow the [tidyverse style guide](https://style.tidyverse.org/). This guide is a subset of the `tidyverse` style guide and outlines the additional style requirements for the `epinowcast` package.
+Generally, we follow the [`tidyverse` style guide](https://style.tidyverse.org/). This guide is provides extensions and exceptions to that `tidyverse` style guide.
 
 ## Naming conventions
 
-- We use a `enw_` prefix to delineate functions that are exported by the `epinowcast` package. This is to avoid conflicts with other packages and to make it clear to users which functions are part of the package.
-- The use of this prefix is not required for internal functions (i.e. functions that are not exported) or that are unlikely to have naming conflicts with other packages.
+- For most packages, we use a short prefix for exported functions (e.g. we use `enw_` prefix for the `epinowcast` package). This helps preclude to conflicts with other packages and also makes it more convenient for users to tab-complete / browse functions from the package.
+- There are some exceptions:
+  * For functions that work with S3 objects (e.g. `plot.epinowcast()`, they must be named accordingly.
+  * Internal functions (i.e. functions that are not exported) do not require this prefix. However: we do have standard internal prefixes as well: `check_` for functions that validate arguments, `coerce_` for functions that convert to a particular type.
+  * For functions where the name is intended to leverage other R-wide naming conventions (e.g. `(d|r|p|q)DISTRO` style naming)
+
+Also note that these are conventions, not hard rules.
 
 ## Dependencies
 
-In general we aim to minimise dependencies on other packages where possible. This makes it easier to maintain the package and reduces the risk of breaking changes in other packages impacting our users. However, additional dependencies are sometimes necessary to improve the functionality of the package.
+In general we aim to minimise dependencies on packages outside the `epinowcast` community where possible. This makes it easier to maintain our packages and reduces the risk of breaking changes in other packages impacting our users. However, additional dependencies are sometimes necessary to improve the functionality of the package.
 
 The following guidelines should be followed when using adding dependencies:
 
@@ -25,34 +30,18 @@ More generally when adding functions from external packages (i.e. even if they a
 
 ## Input types and checking
 
-- We support inputs that are coercible to `data.table` objects using `data.table::as.data.table()`. This includes `data.frame` and `tibble` objects. This should be clearly documented in the function documentation.
-- Any required inputs should be clearly documented in the function documentation.
-- We use an internal function `coerce_dt()` to check inputs are coercible to `data.table` objects and have the correct columns. This function is used in all functions that take data as input. The following function demonstrates this pattern (note this requires the use of `devtools::load_all()` in the package directory):
+- Any required inputs should be clearly documented in the function documentation, particularly in terms of type, but also other constraints (e.g. presence/absence of columns).
+- Any expressed constraint in exported functions should be verified using some sort of `check_` expression, and ideally unit tests written correspondingly to confirm that `check_` rejects bad input.
+- Many of methods across the `epinowcast` packages work with `data.frame` inputs (and subclasses of `data.frame` like `data.table` and `tibble`). Internally, for performance and syntax reasons, we prefer to use `data.table`s explicitly and that is generally the type returned by functions. However, we will continue to accept `data.frame`-like arguments as inputs.
+- Translation from `data.frame` to `data.table` can be handled by `coerce_dt`, `check_dt` or `make_dt` (`coerce_dt` and `check_dt` combined) which will be provided in a to-be-released package `make_dt`
+- In general, functions should be side-effect-free on their arguments. This is generally the case in R, but notably `data.table` arguments may be modified inside functions. To maintain the benefits of using `data.table`, you may wish to allow side effects, either by method flag or with internal methods.
 
-```r
-print_dt <- function(dt) {
-    dt <- coerce_dt(dt, required_cols = c("date", "cases"))
-    return(dt[])
-}
-
-print_dt(mtcars)
-# Error in epinowcast:::coerce_dt(dt, required_cols = c("date", "cases")) : 
-#   The following columns are required: date, cases but are not present among mpg, cyl, disp, hp, drat, wt, qsec, vs, am, gear, carb
-# (all `required_cols`: date, cases)
-print_dt(data.frame(cases = 1, date = Sys.Date()))
-#    cases       date
-# 1:     1 2023-04-27
-```
-
-In general, we aim to check the inputs for all external facing functions. This is to ensure that the user is aware of any issues with the input data and to provide a consistent error message. See the documentation for `coerce_dt()` for more details. It may also be helpful to review usage in the package more widely, for this `data-converters.R` is a sensible place to start.
-
-- For external facing functions `coerce_dt()` should generally not update by reference (i.e. `copy = TRUE` should be set, the default). In cases where users may benefit from updating by reference the external function should pass through the `copy` argument to `coerce_dt()`.
-- However, those external functions may be invoked within other package functions, in which case `coerce_dt()` can often update by reference (i.e. `copy = FALSE` should be set). This is to avoid unnecessary copying of data. For purely internal functions, `coerce_dt()` can generally be used with `copy = FALSE`, again because copying is unnecessary. 
+In general, we aim to check the inputs for all external facing functions. This is to ensure that the user is aware of any issues with the input data and to provide a consistent error message. For an example of this philosophy, review usage in `epinowcast` more widely, such as the functions in `R/data-converters.R`. 
 
 ## Internal data manipulation
 
 - `data.table` objects are used for internal data manipulation. If you are unfamiliar with `data.table` please see the [documentation](https://rdatatable.gitlab.io/data.table/index.html) and [cheatsheet](https://s3.amazonaws.com/assets.datacamp.com/img/blog/data+table+cheat+sheet.pdf). Prototype code may be written with other tools but will generally need be refactored to use `data.table` before submission (in PRs where help is needed with this please clearly state this).
-- We aim to use more readable vs efficient `data.table` syntax where there is a trade-off (of course the exact trade-off requirers developer judgement). For example, rather than bracket chaining we prefer the use of one-line statements with re-assignment. The following functions demonstrate these patterns:
+- We aim to use more readable vs efficient `data.table` syntax where there is a trade-off (of course the exact trade-off requirers developer judgement). For example, rather than bracket chaining we prefer the use of one-line statements with re-assignment. The following functions demonstrate these patterns (and the reason why we avoid them - the chained dt actually yields a different result for `dt_chain` vs `dt`):
 
 ```r
 library(data.table)
