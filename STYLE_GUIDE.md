@@ -1,8 +1,75 @@
 # Style Guide
 
-This document outlines the style guide for `epinowcast` family of packages. This guide is a work in progress and will be updated as the community packages evolve. We welcome contributions to this guide and encourage you to raise issues or submit PRs if you have any suggestions.
+This document outlines the style guide for `epinowcast` family of packages.
+This guide is a work in progress and will be updated as the community packages evolve.
+We welcome contributions to this guide and encourage you to raise issues or submit PRs if you have any suggestions.
 
-Generally, we follow the [`tidyverse` style guide](https://style.tidyverse.org/). This guide is provides extensions and exceptions to that `tidyverse` style guide.
+Generally, we follow the [`tidyverse` style guide](https://style.tidyverse.org/).
+This guide provides extensions and exceptions to that `tidyverse` style guide.
+
+## Code formatting
+
+### Line length
+
+All code should be wrapped at 80 characters per line.
+This applies to R code, Stan code, and other source files.
+One sentence per line takes priority in Markdown and Quarto files.
+
+### Function call formatting
+
+Short function calls should stay on a single line:
+
+```r
+obs <- coerce_dt(obs, dates = TRUE)
+data.table::setkeyv(metaobs, c(".group", "date"))
+```
+
+When a function call needs to wrap, the first argument stays on the same line as the function name if it fits within the 80-character limit.
+Subsequent arguments go on new lines, each indented by 2 spaces.
+The closing bracket goes on its own line:
+
+```r
+# Good: first argument fits on same line
+nowcast <- epinowcast(pobs,
+  fit = enw_fit_opts(
+    save_warmup = FALSE, pp = TRUE,
+    chains = 2, iter_warmup = 500,
+    iter_sampling = 500
+  )
+)
+```
+
+When the function name plus the first argument would exceed 80 characters, the first argument moves to a new line:
+
+```r
+# Good: first arg on new line when the line would be too long
+retro_nat_germany <- enw_filter_reference_dates(
+  retro_nat_germany,
+  include_days = 40
+)
+
+obs <- coerce_dt(
+  obs,
+  required_cols = c("new_confirm", "reference_date", "delay"),
+  group = TRUE
+)
+```
+
+Do not align arguments to the opening parenthesis in function calls:
+
+```r
+# Bad: arguments aligned to opening parenthesis
+reports <- data.table::dcast(obs,
+                             .group + reference_date ~ delay,
+                             value.var = "new_confirm",
+                             fill = 0)
+
+# Good: arguments indented 2 spaces
+reports <- data.table::dcast(obs,
+  .group + reference_date ~ delay,
+  value.var = "new_confirm", fill = 0
+)
+```
 
 ## Naming conventions
 
